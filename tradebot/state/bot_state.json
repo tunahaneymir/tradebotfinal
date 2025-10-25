@@ -1,0 +1,13 @@
+{
+  "bot_state": {
+    "confidence": 0.5,
+    "stress": 0.0,
+    "patience": 0.5,
+    "last_update": ""
+  },
+  "open_positions": [],
+  "cooldowns": {},
+  "daily_trades": 0,
+  "daily_risk_used": 0.0,
+  "saved_at": "2025-10-22T03:40:39.671390"
+}

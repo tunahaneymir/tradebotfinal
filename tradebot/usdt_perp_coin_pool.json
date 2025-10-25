@@ -1,0 +1,194 @@
+{
+    "timestamp": "2025-10-25 00:38:26",
+    "filters": {
+        "min_volume": 80000000,
+        "max_spread": 0.15,
+        "min_volatility": 1.5,
+        "max_volatility": 20.0,
+        "limit": 20,
+        "atr_period": 14,
+        "kline_interval": "1d"
+    },
+    "pool": [
+        {
+            "symbol": "ETHUSDT",
+            "volume": 14672593837.51,
+            "spread": 0.0002541560874135178,
+            "bid": 3934.59,
+            "ask": 3934.6,
+            "atr": 6.34,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "BTCUSDT",
+            "volume": 12597718380.73,
+            "spread": 9.018612611922682e-05,
+            "bid": 110881.8,
+            "ask": 110881.9,
+            "atr": 3.61,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "SOLUSDT",
+            "volume": 3775945155.5675,
+            "spread": 0.005167958656326049,
+            "bid": 193.5,
+            "ask": 193.51,
+            "atr": 7.56,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "XRPUSDT",
+            "volume": 1355924534.5904,
+            "spread": 0.004000320025592725,
+            "bid": 2.4998,
+            "ask": 2.4999,
+            "atr": 6.44,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "BNBUSDT",
+            "volume": 1304717279.634,
+            "spread": 0.0009015669233118976,
+            "bid": 1109.18,
+            "ask": 1109.19,
+            "atr": 8.5,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "DOGEUSDT",
+            "volume": 945875742.98778,
+            "spread": 0.005060728744944332,
+            "bid": 0.1976,
+            "ask": 0.19761,
+            "atr": 7.62,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "ASTERUSDT",
+            "volume": 682235666.9602,
+            "spread": 0.008904719501334727,
+            "bid": 1.123,
+            "ask": 1.1231,
+            "atr": 17.6,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "ZECUSDT",
+            "volume": 578857716.28,
+            "spread": 0.003852822192252323,
+            "bid": 259.55,
+            "ask": 259.56,
+            "atr": 18.43,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "FUSDT",
+            "volume": 502078436.123564,
+            "spread": 0.04265847623922699,
+            "bid": 0.023442,
+            "ask": 0.023452,
+            "atr": 12.73,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "HUSDT",
+            "volume": 480720034.80349,
+            "spread": 0.04898279071285748,
+            "bid": 0.30623,
+            "ask": 0.30638,
+            "atr": 14.25,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "AVNTUSDT",
+            "volume": 438581708.42091,
+            "spread": 0.024906600249063257,
+            "bid": 0.803,
+            "ask": 0.8032,
+            "atr": 13.33,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "SUIUSDT",
+            "volume": 429392342.62942,
+            "spread": 0.003982794328491594,
+            "bid": 2.5108,
+            "ask": 2.5109,
+            "atr": 9.4,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "HYPEUSDT",
+            "volume": 375402649.08784,
+            "spread": 0.002520542420723067,
+            "bid": 39.674,
+            "ask": 39.675,
+            "atr": 9.78,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "1000PEPEUSDT",
+            "volume": 331952151.1558262,
+            "spread": 0.0013955175974807207,
+            "bid": 0.0071658,
+            "ask": 0.0071659,
+            "atr": 8.37,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "ENAUSDT",
+            "volume": 315124984.6508,
+            "spread": 0.020742584526041174,
+            "bid": 0.4821,
+            "ask": 0.4822,
+            "atr": 12.09,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "XPINUSDT",
+            "volume": 298793235.1335443,
+            "spread": 0.01622606655184794,
+            "bid": 0.0080118,
+            "ask": 0.0080131,
+            "atr": 16.38,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "PUMPUSDT",
+            "volume": 285469847.153806,
+            "spread": 0.024055809477992126,
+            "bid": 0.004157,
+            "ask": 0.004158,
+            "atr": 12.65,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "LINKUSDT",
+            "volume": 281712560.727,
+            "spread": 0.0055912776069201526,
+            "bid": 17.885,
+            "ask": 17.886,
+            "atr": 8.43,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "AVAXUSDT",
+            "volume": 277338088.914,
+            "spread": 0.005106469897366196,
+            "bid": 19.583,
+            "ask": 19.584,
+            "atr": 8.44,
+            "market": "USDT-M Perpetual"
+        },
+        {
+            "symbol": "ADAUSDT",
+            "volume": 271130955.896,
+            "spread": 0.015220700152205325,
+            "bid": 0.657,
+            "ask": 0.6571,
+            "atr": 7.66,
+            "market": "USDT-M Perpetual"
+        }
+    ]
+}

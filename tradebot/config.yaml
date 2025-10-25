@@ -1,0 +1,281 @@
+# ════════════════════════════════════════════════════════════
+# PA + RL Trading Bot - Configuration
+# ════════════════════════════════════════════════════════════
+
+# ────────────────────────────────────────────────────────────
+# BOT INFORMATION
+# ────────────────────────────────────────────────────────────
+bot:
+  name: "PA+RL Trading Bot"
+  version: "1.0.0"
+  mode: "paper"  # live, paper, test
+
+# ────────────────────────────────────────────────────────────
+# PATHS & DIRECTORIES
+# ────────────────────────────────────────────────────────────
+paths:
+  data_dir: "state"
+  database_path: "data/trades.db"
+  logs_dir: "logs"
+  backups_dir: "backups"
+  models_dir: "models"
+
+# ────────────────────────────────────────────────────────────
+# TELEGRAM NOTIFICATIONS
+# ────────────────────────────────────────────────────────────
+telegram:
+  enabled: false
+  bot_token: "YOUR_BOT_TOKEN_HERE"
+  chat_id: "YOUR_CHAT_ID_HERE"
+  quiet_hours:
+    enabled: true
+    start: "00:00"
+    end: "08:00"
+
+# ────────────────────────────────────────────────────────────
+# RISK MANAGEMENT (Parça 5)
+# ────────────────────────────────────────────────────────────
+risk:
+  per_trade_pct: 0.02          # %2 per trade
+  daily_limit_pct: 0.06        # %6 daily
+  portfolio_limit_pct: 0.08    # %8 total open risk
+  max_leverage: 5.0
+  max_positions: 3
+  
+  # Re-entry risk
+  reentry_risk_factor: 0.5     # Yarı risk
+  
+  # Safe mode
+  safe_mode:
+    drawdown_threshold: 0.10   # %10 DD → safe mode
+    consecutive_loss_threshold: 3
+    risk_reduction: 0.5        # Risk yarıya düş
+
+# ────────────────────────────────────────────────────────────
+# TRADING PARAMETERS
+# ────────────────────────────────────────────────────────────
+trading:
+  # Timeframes
+  timeframes:
+    trend: "4H"
+    zone: "1H"
+    entry: "15M"
+  
+  # Coin selection
+  coin_selection:
+    enabled: true
+    max_coins: 10
+    min_volume_24h: 100000000  # $100M
+    min_liquidity: 5000000      # $5M
+  
+  # Trading hours (UTC)
+  trading_hours:
+    enabled: false
+    start: "00:00"
+    end: "23:59"
+
+# ────────────────────────────────────────────────────────────
+# TREND DETECTION (Parça 1)
+# ────────────────────────────────────────────────────────────
+trend:
+  ema_fast: 20
+  ema_slow: 50
+  
+  # Sideways detection
+  sideways:
+    ema_distance_pct: 0.005    # %0.5
+    atr_ratio: 0.006           # %0.6
+    range_pct: 0.08            # %8
+
+# ────────────────────────────────────────────────────────────
+# ZONE DETECTION (Parça 1)
+# ────────────────────────────────────────────────────────────
+zones:
+  # ZigZag++ parameters
+  zigzag:
+    depth: 12
+    deviation: 5
+    backstep: 2
+  
+  # Swing parameters
+  swing:
+    strength: 5
+  
+  # Zone quality
+  min_touches: 2
+  max_thickness_pct: 1.5
+  min_quality: 4               # 0-10 scale
+  
+  # Lookback periods
+  lookback:
+    "4H": 720                  # 120 days
+    "1H": 600                  # 3-4 weeks
+    "15M": 400                 # 4-5 days
+
+# ────────────────────────────────────────────────────────────
+# ENTRY SYSTEM (Parça 2)
+# ────────────────────────────────────────────────────────────
+entry:
+  # ChoCH
+  choch:
+    min_strength: 0.4
+  
+  # Fibonacci
+  fibonacci:
+    levels: [0.705, 0.618]
+  
+  # Stop loss
+  stop_loss:
+    buffer_pct: 0.005          # %0.5
+
+# ────────────────────────────────────────────────────────────
+# EXIT SYSTEM (Parça 2)
+# ────────────────────────────────────────────────────────────
+exit:
+  # Take profit distribution
+  take_profit:
+    tp1:
+      ratio: 0.5               # %50
+      rr: 1.5
+    tp2:
+      ratio: 0.3               # %30
+      rr_min: 2.5
+    tp3:
+      ratio: 0.2               # %20
+      dynamic: true
+  
+  # Trailing stop
+  trailing:
+    enabled: true
+    buffer_pct: 0.005
+  
+  # Breakeven
+  breakeven:
+    enabled: true
+    after: "tp1"               # TP1 hit → SL to breakeven
+
+# ────────────────────────────────────────────────────────────
+# RE-ENTRY SYSTEM (Parça 3)
+# ────────────────────────────────────────────────────────────
+reentry:
+  enabled: true
+  wait_candles: 2
+  max_attempts: 2
+  require_new_choch: true
+  require_new_fib: true
+
+# ────────────────────────────────────────────────────────────
+# RL AGENT (Parça 4)
+# ────────────────────────────────────────────────────────────
+rl:
+  algorithm: "PPO"
+  state_features: 40
+  
+  # Setup scoring
+  setup_scoring:
+    min_score: 40              # 0-100 scale
+    excellent_threshold: 80
+  
+  # Gate system
+  gates:
+    enabled: true
+    min_zone_quality: 4
+    min_choch_strength: 0.4
+
+# ────────────────────────────────────────────────────────────
+# BEHAVIORAL GUARDS (Parça 6-7)
+# ────────────────────────────────────────────────────────────
+behavior:
+  # Anti-FOMO
+  anti_fomo:
+    enabled: true
+    threshold: 50              # FOMO score ≥50 → block
+  
+  # Anti-Revenge
+  anti_revenge:
+    enabled: true
+    cooldown:
+      single_loss: 15          # minutes
+      double_loss: 45
+      triple_loss: 120
+  
+  # Anti-Overtrading
+  anti_overtrading:
+    enabled: true
+    max_trades_per_hour: 2
+    max_trades_per_day: 5
+
+# ────────────────────────────────────────────────────────────
+# LEARNING SYSTEM (Parça 8)
+# ────────────────────────────────────────────────────────────
+learning:
+  enabled: true
+  
+  # Experience buffer
+  buffer_size: 100000
+  
+  # Training
+  training:
+    frequency: "4h"            # Every 4 hours
+    batch_size: 128
+    epochs: 5
+  
+  # Performance tracking
+  performance:
+    analysis_frequency: "daily"
+    optimization_frequency: "weekly"
+
+# ────────────────────────────────────────────────────────────
+# INFRASTRUCTURE (Parça 9)
+# ────────────────────────────────────────────────────────────
+infrastructure:
+  # Autosave
+  autosave:
+    enabled: true
+    interval_minutes: 15
+  
+  # Backups
+  backup:
+    enabled: true
+    hourly: true
+    daily: true
+    retention_days: 7
+  
+  # Volatility guard
+  volatility:
+    enabled: true
+    extreme_move_threshold: 0.10   # %10 in 5min
+    block_duration_minutes: 30
+  
+  # Circuit breaker
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    recovery_timeout: 60
+
+# ────────────────────────────────────────────────────────────
+# EXCHANGE (Will be implemented)
+# ────────────────────────────────────────────────────────────
+exchange:
+  name: "binance"
+  api_key: ""
+  api_secret: ""
+  testnet: true
+
+# ────────────────────────────────────────────────────────────
+# LOGGING
+# ────────────────────────────────────────────────────────────
+logging:
+  level: "INFO"                # DEBUG, INFO, WARNING, ERROR
+  file: "logs/bot.log"
+  max_size_mb: 10
+  backup_count: 5
+
+# ────────────────────────────────────────────────────────────
+# DEVELOPMENT / DEBUG
+# ────────────────────────────────────────────────────────────
+debug:
+  enabled: false
+  log_trades: true
+  log_signals: true
+  save_state_every_trade: false
