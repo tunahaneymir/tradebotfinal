@@ -31,13 +31,12 @@ class OpenPosition:
 
 class BinanceFuturesExecutor:
     """
-    Binance Futures Testnet'e gerçek emir gönderen executor
+    Binance Futures Demo Executor
     
-    Features:
-    - Market emirler
-    - OCO (One-Cancels-Other) TP/SL
-    - Position tracking
-    - Risk management
+    Kullanım: https://demo.binance.com/en/futures/
+    - Gerçek Binance API
+    - Demo mode (gerçek paraya dokunmaz)
+    - Tüm özellikler aktif
     """
     
     def __init__(self, config: dict):
@@ -50,15 +49,28 @@ class BinanceFuturesExecutor:
         self.config = config
         
         # Initialize Binance client
+        api_key = config.get('api_key', '')
+        api_secret = config.get('api_secret', '')
+        
+        if not api_key or not api_secret:
+            raise ValueError("❌ API key ve secret gerekli! config.yaml'i kontrol edin.")
+        
         self.client = Client(
-            api_key=config.get('api_key', ''),
-            api_secret=config.get('api_secret', ''),
-            testnet=config.get('testnet', True)
+            api_key=api_key,
+            api_secret=api_secret
         )
         
-        # Set to futures
-        if config.get('testnet'):
-            self.client.API_URL = 'https://testnet.binancefuture.com'
+        # Demo mode için base URL ayarla
+        if config.get('demo_mode', True):
+            # Demo.binance.com gerçek API kullanır, testnet değil
+            self.client.API_URL = 'https://api.binance.com'
+            self.client.FUTURES_URL = 'https://fapi.binance.com'
+            print("✅ Demo mode active (https://demo.binance.com)")
+        elif config.get('testnet', False):
+            # Testnet kullanımı (opsiyonel)
+            self.client.API_URL = 'https://testnet.binance.vision'
+            self.client.FUTURES_URL = 'https://testnet.binancefuture.com'
+            print("✅ Testnet mode active")
         
         # Open positions
         self.positions: Dict[str, OpenPosition] = {}
