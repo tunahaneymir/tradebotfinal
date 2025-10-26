@@ -255,17 +255,28 @@ infrastructure:
     recovery_timeout: 60
 
 # ────────────────────────────────────────────────────────────
-# EXCHANGE (Şimdilik TEST MODE için gerekli değil)
+# EXCHANGE - BINANCE FUTURES DEMO
 # ────────────────────────────────────────────────────────────
 exchange:
   name: "binance"
-  api_key: ""
-  api_secret: ""
-  testnet: true
+  market_type: "futures"       # FUTURES not SPOT!
+  
+  # API Keys (Binance ana hesaptan alınacak, Demo modda çalışacak)
+  api_key: "YOUR_API_KEY"
+  api_secret: "YOUR_SECRET_KEY"
+  
+  # Demo mode (https://demo.binance.com)
+  testnet: false               # Gerçek Binance API ama Demo mode
+  demo_mode: true              # Demo trading aktif
+  base_url: "https://fapi.binance.com"  # Futures API
   
   # Market data
-  data_source: "simulation"    # simulation, binance, ccxt
+  data_source: "binance"       # simulation, binance, ccxt
   update_interval: 60          # seconds
+  
+  # Futures specific
+  leverage: 5                  # Default leverage
+  margin_type: "isolated"      # isolated or cross
 
 # ────────────────────────────────────────────────────────────
 # LOGGING
