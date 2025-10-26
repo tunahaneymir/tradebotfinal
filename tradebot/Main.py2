@@ -43,7 +43,7 @@ from learning.system_integration import SystemIntegrator
 
 # Position Agent (ZATEN VAR!)
 from position_agent.coin_selector import CoinSelector
-from position_agent.executor_demo import ExecutorDemo  # Demo executor
+from position_agent.executor_binance_futures import BinanceFuturesExecutor  # YENİ!
 from position_agent.position_agent import PositionAgent
 from position_agent.rmm_engine import RMMEngine
 
@@ -75,7 +75,7 @@ class TradingBot:
         
         print("\n" + "="*60)
         print(f"🤖 PA + RL TRADING BOT - {mode.upper()} MODE")
-        print(f"💹 Market: BINANCE FUTURES")
+        print(f"💹 Market: BINANCE FUTURES (https://demo.binance.com)")
         print("="*60)
         
         # Load configuration
@@ -141,12 +141,14 @@ class TradingBot:
         # Initialize Executor (Paper or Live)
         print(f"📦 Initializing executor ({mode} mode)...")
         if mode == "paper":
-            self.executor = ExecutorDemo(self.config['exchange'])
-            print("   ✅ Paper trading executor ready (FUTURES)")
+            self.executor = BinanceFuturesExecutor(self.config['exchange'])
+            print("   ✅ Binance Futures Testnet executor ready!")
         else:
-            # TODO: Live executor'u eklenecek
-            print("   ⚠️  Live executor not implemented yet")
-            self.executor = None
+            # Live trading - aynı executor ama testnet=false
+            live_config = self.config['exchange'].copy()
+            live_config['testnet'] = False
+            self.executor = BinanceFuturesExecutor(live_config)
+            print("   ⚠️  LIVE TRADING ACTIVE - REAL MONEY!")
         
         self.position_agent = PositionAgent(
             executor=self.executor,
