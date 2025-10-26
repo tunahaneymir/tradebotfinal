@@ -25,7 +25,7 @@ pandas-ta>=0.3.14
 # Exchange & Data
 # ─────────────────────────────────────────────────────────
 ccxt>=4.0.0        # Binance API
-python-binance>=1.0.19
+python-binance>=1.0.19  # Binance Futures için GEREKLI!
 websocket-client>=1.6.0
 
 # ─────────────────────────────────────────────────────────
