@@ -10,9 +10,14 @@ import sys
 import time
 import signal
 import argparse
+import os
 from pathlib import Path
 from typing import Optional
 import yaml
+from dotenv import load_dotenv  # .env desteği
+
+# Load environment variables
+load_dotenv()
 
 # Infrastructure
 from infrastructure import InfrastructureManager
@@ -142,11 +147,12 @@ class TradingBot:
         print(f"📦 Initializing executor ({mode} mode)...")
         if mode == "paper":
             self.executor = BinanceFuturesExecutor(self.config['exchange'])
-            print("   ✅ Binance Futures Testnet executor ready!")
+            print("   ✅ Binance Futures Demo executor ready!")
+            print("   💰 Demo balance will be used (https://demo.binance.com)")
         else:
-            # Live trading - aynı executor ama testnet=false
+            # Live trading - demo_mode = false
             live_config = self.config['exchange'].copy()
-            live_config['testnet'] = False
+            live_config['demo_mode'] = False
             self.executor = BinanceFuturesExecutor(live_config)
             print("   ⚠️  LIVE TRADING ACTIVE - REAL MONEY!")
         
@@ -341,17 +347,35 @@ class TradingBot:
         if not config_file.exists():
             print(f"⚠️  Config file not found: {config_path}")
             print("📝 Using default configuration")
-            return self._default_config()
+            config = self._default_config()
+        else:
+            try:
+                with open(config_file) as f:
+                    config = yaml.safe_load(f)
+                print(f"✅ Configuration loaded: {config_path}")
+            except Exception as e:
+                print(f"❌ Error loading config: {e}")
+                print("📝 Using default configuration")
+                config = self._default_config()
         
-        try:
-            with open(config_file) as f:
-                config = yaml.safe_load(f)
-            print(f"✅ Configuration loaded: {config_path}")
-            return config
-        except Exception as e:
-            print(f"❌ Error loading config: {e}")
-            print("📝 Using default configuration")
-            return self._default_config()
+        # Override with environment variables (if .env exists)
+        if os.getenv('BINANCE_API_KEY'):
+            config['exchange']['api_key'] = os.getenv('BINANCE_API_KEY')
+            print("   ✅ API Key loaded from .env")
+        
+        if os.getenv('BINANCE_API_SECRET'):
+            config['exchange']['api_secret'] = os.getenv('BINANCE_API_SECRET')
+            print("   ✅ API Secret loaded from .env")
+        
+        if os.getenv('TELEGRAM_BOT_TOKEN'):
+            config['telegram']['bot_token'] = os.getenv('TELEGRAM_BOT_TOKEN')
+            config['telegram']['enabled'] = True
+            print("   ✅ Telegram token loaded from .env")
+        
+        if os.getenv('TELEGRAM_CHAT_ID'):
+            config['telegram']['chat_id'] = os.getenv('TELEGRAM_CHAT_ID')
+        
+        return config
     
     def _default_config(self) -> dict:
         """Default configuration"""
@@ -375,9 +399,11 @@ class TradingBot:
                 "enabled": False
             },
             "risk": {
-                "per_trade_pct": 0.02,
-                "daily_limit_pct": 0.06,
-                "portfolio_limit_pct": 0.08
+                "base_risk_pct": 0.03,        # %3 per trade
+                "daily_r_budget": 5.0,        # Günde max 5R
+                "weekly_dd_limit_r": 15.0,    # Haftalık max 15R
+                "max_leverage": 5.0,
+                "max_positions": 5            # Max 5 pozisyon
             },
             "trading": {
                 "timeframes": {
