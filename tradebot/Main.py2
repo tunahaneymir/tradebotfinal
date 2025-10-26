@@ -1,10 +1,9 @@
 """
-PA + RL Trading Bot - Main Entry Point (FIXED VERSION)
+PA + RL Trading Bot - Main Entry Point (FUTURES PAPER TRADING)
 
 Usage:
-    python main.py
-    python main.py --config production.yaml
-    python main.py --mode test
+    python Main.py --mode paper
+    python Main.py --mode live  # After 6 months training
 """
 
 import sys
@@ -42,40 +41,61 @@ from learning.continuous_learning import ContinuousLearning
 from learning.experience_buffer import ExperienceBuffer
 from learning.system_integration import SystemIntegrator
 
+# Position Agent (ZATEN VAR!)
+from position_agent.coin_selector import CoinSelector
+from position_agent.executor_demo import ExecutorDemo  # Demo executor
+from position_agent.position_agent import PositionAgent
+from position_agent.rmm_engine import RMMEngine
+
+# Data
+from data.data_fetcher import DataFetcher
+
 
 class TradingBot:
     """
-    PA + RL Trading Bot - Complete Implementation
+    PA + RL Trading Bot - FUTURES Paper Trading
     
-    Architecture:
-    - Infrastructure: State, backups, monitoring
-    - Core PA: Trend, zones, entry/exit
-    - Adaptive: Re-entry, liquidity, zone memory
-    - RL: Agent, rewards, behavioral guards
-    - Learning: Continuous learning, optimization
+    6 Ay Plan:
+    - Paper trading ile öğrenme
+    - RL agent eğitimi
+    - Performans tracking
+    - 6 ay sonra Live Trading'e geçiş
     """
     
-    def __init__(self, config_path: str = "config.yaml", mode: str = "live"):
+    def __init__(self, config_path: str = "config.yaml", mode: str = "paper"):
         """
         Initialize trading bot
         
         Args:
             config_path: Path to configuration file
-            mode: 'live', 'paper', or 'test'
+            mode: 'paper' or 'live'
         """
         self.mode = mode
         self.running = False
         
         print("\n" + "="*60)
         print(f"🤖 PA + RL TRADING BOT - {mode.upper()} MODE")
+        print(f"💹 Market: BINANCE FUTURES")
         print("="*60)
         
         # Load configuration
         self.config = self._load_config(config_path)
         
+        # Verify mode
+        if mode == "live" and not self._verify_live_ready():
+            print("\n⚠️  UYARI: Live trading için 6 aylık paper trading gerekli!")
+            print("    Önce --mode paper ile başlayın.\n")
+            sys.exit(1)
+        
         # Initialize infrastructure
         print("\n📦 Initializing infrastructure...")
         self.infra = InfrastructureManager(self.config)
+        
+        # Initialize data fetcher
+        print("📦 Initializing data fetcher...")
+        self.data_fetcher = DataFetcher(
+            source=self.config['exchange']['data_source']
+        )
         
         # Initialize PA components
         print("📦 Initializing PA components...")
@@ -113,6 +133,27 @@ class TradingBot:
             print("   ⚠️  No trained model found, starting fresh")
             self.agent = None
         
+        # Initialize Position Management
+        print("📦 Initializing position management...")
+        self.coin_selector = CoinSelector(self.config['trading']['coin_selection'])
+        self.rmm_engine = RMMEngine(self.config['risk'])
+        
+        # Initialize Executor (Paper or Live)
+        print(f"📦 Initializing executor ({mode} mode)...")
+        if mode == "paper":
+            self.executor = ExecutorDemo(self.config['exchange'])
+            print("   ✅ Paper trading executor ready (FUTURES)")
+        else:
+            # TODO: Live executor'u eklenecek
+            print("   ⚠️  Live executor not implemented yet")
+            self.executor = None
+        
+        self.position_agent = PositionAgent(
+            executor=self.executor,
+            rmm_engine=self.rmm_engine,
+            config=self.config
+        )
+        
         # Initialize learning system
         print("📦 Initializing learning system...")
         if self.config['learning']['enabled']:
@@ -123,6 +164,7 @@ class TradingBot:
                 self.config['learning'],
                 self.infra
             )
+            print("   ✅ 6-month learning program activated!")
         else:
             self.experience_buffer = None
             self.learning = None
@@ -169,6 +211,11 @@ class TradingBot:
             
             self.running = True
             
+            print(f"\n🚀 Starting {self.mode.upper()} trading loop...")
+            if self.mode == "paper":
+                print("📚 6-month learning program active")
+                print("💡 Bot will learn from paper trades before going live\n")
+            
             # Run main loop
             self._main_loop()
             
@@ -177,6 +224,8 @@ class TradingBot:
             self.stop()
         except Exception as e:
             print(f"\n\n❌ Fatal error: {e}")
+            import traceback
+            traceback.print_exc()
             self.stop()
             raise
     
@@ -194,6 +243,11 @@ class TradingBot:
             if self.learning:
                 self.learning.stop()
             
+            # Close positions (in live mode)
+            if self.mode == "live":
+                print("   Closing open positions...")
+                # TODO: Close positions
+            
             # Stop infrastructure
             self.infra.stop_all()
             
@@ -207,33 +261,61 @@ class TradingBot:
     
     def _main_loop(self):
         """Main trading loop"""
-        print("\n" + "="*60)
-        print("🔄 STARTING MAIN LOOP")
-        print("="*60 + "\n")
-        
         iteration = 0
         
         while self.running:
             try:
                 iteration += 1
                 
-                # Get market data
-                # TODO: Implement data fetching
-                # data = self.fetch_market_data()
+                # Select coins to trade
+                coins = self.coin_selector.select_coins()
                 
-                # Process signals through integrator
-                # signal = self.integrator.process_market_data(data)
+                if not coins:
+                    print(f"[Iteration {iteration}] No coins selected, waiting...")
+                    time.sleep(60)
+                    continue
                 
-                # Execute trades
-                # if signal['action'] != 'HOLD':
-                #     self.execute_trade(signal)
-                
-                print(f"[Iteration {iteration}] System running...")
+                # Process each coin
+                for symbol in coins:
+                    try:
+                        # Fetch market data
+                        data = self.data_fetcher.fetch_ohlcv(
+                            symbol=symbol,
+                            timeframe=self.config['trading']['timeframes']['entry'],
+                            limit=500
+                        )
+                        
+                        # Process through integrator
+                        signal = self.integrator.process_market_data(data)
+                        
+                        # Execute if valid signal
+                        if signal['action'] != 'HOLD':
+                            result = self.position_agent.execute_signal(signal, symbol)
+                            
+                            if result['success']:
+                                print(f"✅ {signal['action']} {symbol}: {result['message']}")
+                                
+                                # Store experience for learning
+                                if self.experience_buffer:
+                                    self.experience_buffer.add(
+                                        state=signal['state'],
+                                        action=signal['action'],
+                                        reward=0,  # Will be updated later
+                                        next_state=None,
+                                        done=False
+                                    )
+                            else:
+                                print(f"❌ Failed {signal['action']} {symbol}: {result['message']}")
+                        
+                    except Exception as e:
+                        print(f"❌ Error processing {symbol}: {e}")
+                        continue
                 
                 # Update dashboard
                 self.infra.update_dashboard()
                 
-                # Sleep (in production, sync with candle close)
+                # Sleep until next cycle
+                print(f"[Iteration {iteration}] Cycle complete, waiting...")
                 time.sleep(60)
                 
             except KeyboardInterrupt:
@@ -242,6 +324,13 @@ class TradingBot:
                 print(f"❌ Error in main loop: {e}")
                 self.infra.send_notification("critical", f"Main loop error: {e}")
                 time.sleep(5)
+    
+    def _verify_live_ready(self) -> bool:
+        """Verify bot is ready for live trading (after 6 months paper)"""
+        # TODO: Check performance metrics, training duration, etc.
+        # For now, just check if model exists
+        model_path = self.config.get('rl', {}).get('model_path')
+        return model_path and Path(model_path).exists()
     
     def _load_config(self, config_path: str) -> dict:
         """Load configuration from file"""
@@ -275,6 +364,11 @@ class TradingBot:
                 "logs_dir": "logs",
                 "models_dir": "models"
             },
+            "exchange": {
+                "name": "binance",
+                "market_type": "futures",  # FUTURES!
+                "data_source": "simulation"
+            },
             "telegram": {
                 "enabled": False
             },
@@ -289,7 +383,11 @@ class TradingBot:
                     "zone": "1H",
                     "entry": "15M"
                 },
-                "max_positions": 3
+                "max_positions": 3,
+                "coin_selection": {
+                    "enabled": True,
+                    "max_coins": 10
+                }
             },
             "trend": {
                 "ema_fast": 20,
@@ -347,9 +445,19 @@ def main():
     parser = argparse.ArgumentParser(description="PA + RL Trading Bot")
     parser.add_argument("--config", default="config.yaml", help="Config file path")
     parser.add_argument("--mode", default="paper", 
-                       choices=["live", "paper", "test"], 
-                       help="Trading mode")
+                       choices=["paper", "live"], 
+                       help="Trading mode (paper for first 6 months)")
     args = parser.parse_args()
+    
+    # Warning for live mode
+    if args.mode == "live":
+        print("\n" + "="*60)
+        print("⚠️  LIVE TRADING MODE SELECTED")
+        print("="*60)
+        response = input("Are you sure? This will use REAL money! (yes/no): ")
+        if response.lower() != "yes":
+            print("Cancelled.")
+            sys.exit(0)
     
     # Create bot
     bot = TradingBot(config_path=args.config, mode=args.mode)
