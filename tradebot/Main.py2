@@ -26,7 +26,7 @@ from infrastructure.sl_tracker import SLTracker  # YENİ!
 # Core PA System
 from core.trend_detector import TrendDetector
 from core.zone_detector import ZoneDetector
-from core.choch_detector import ChochDetector
+from core.choch_detector import ChoCHDetector  # ✅ CH büyük!
 from core.entry_system import EntrySystem
 from core.exit_system import ExitSystem
 
@@ -38,12 +38,11 @@ from rl.rl_agent_ppo import PPOAgent
 from rl.state_builder import StateBuilder
 from rl.setup_scorer import SetupScorer
 from rl.gate_system import GateSystem
-from rl.anti_fomo import AntiFOMO
-from rl.anti_revenge import AntiRevenge
-from rl.overtrading_detector import OvertradingDetector
+# Anti-FOMO, Revenge, Overtrading → Şimdilik devre dışı (dosyalar incomplete)
 
 # Learning
-from learning.continuous_learning import ContinuousLearning
+# ContinuousLearning şimdilik devre dışı (syntax error)
+# from learning.continuous_learning import ContinuousLearning
 from learning.experience_buffer import ExperienceBuffer
 # SystemIntegrator kaldırıldı - artık Main.py içinde
 
@@ -111,7 +110,7 @@ class TradingBot:
         print("📦 Initializing PA components...")
         self.trend_detector = TrendDetector(self.config['trend'])
         self.zone_detector = ZoneDetector(self.config['zones'])
-        self.choch_detector = ChochDetector(self.config['entry']['choch'])
+        self.choch_detector = ChoCHDetector(self.config['entry']['choch'])  # ✅ CH büyük!
         self.entry_system = EntrySystem(self.config['entry'])
         self.exit_system = ExitSystem(self.config['exit'])
         
@@ -125,13 +124,14 @@ class TradingBot:
         self.setup_scorer = SetupScorer(self.config['rl'])
         self.gate_system = GateSystem(self.config['rl']['gates'])
         
-        # Initialize behavioral guards
+        # Initialize behavioral guards (Placeholder - dosyalar incomplete)
         print("📦 Initializing behavioral guards...")
-        self.anti_fomo = AntiFOMO(self.config['behavior']['anti_fomo'])
-        self.anti_revenge = AntiRevenge(self.config['behavior']['anti_revenge'])
-        self.overtrading_detector = OvertradingDetector(
-            self.config['behavior']['anti_overtrading']
-        )
+        print("   ⚠️  Anti-FOMO: Disabled (incomplete)")
+        print("   ⚠️  Anti-Revenge: Disabled (incomplete)")
+        print("   ⚠️  Anti-Overtrading: Disabled (incomplete)")
+        self.anti_fomo = None
+        self.anti_revenge = None
+        self.overtrading_detector = None
         
         # Initialize RL Agent
         print("📦 Initializing RL agent...")
@@ -183,11 +183,9 @@ class TradingBot:
             self.experience_buffer = ExperienceBuffer(
                 max_size=self.config['learning']['buffer_size']
             )
-            self.learning = ContinuousLearning(
-                self.config['learning'],
-                self.infra
-            )
-            print("   ✅ 6-month learning program activated!")
+            print("   ⚠️  Continuous learning disabled (file has syntax error)")
+            print("   ✅ Experience buffer active (will store trades)")
+            self.learning = None  # Temporarily disabled
         else:
             self.experience_buffer = None
             self.learning = None
@@ -452,24 +450,28 @@ class TradingBot:
                         print(f"   ✅ {len(passed_candidates)} passed gates")
                         
                         # === BEHAVIORAL GUARDS ===
+                        # Temporarily disabled (files incomplete)
                         # Anti-FOMO check
-                        fomo_score = self.anti_fomo.calculate_fomo_score(data, candidate)
-                        if fomo_score >= 50:
-                            print(f"   ⚠️  FOMO blocked (score: {fomo_score})")
-                            continue
+                        if self.anti_fomo:
+                            fomo_score = self.anti_fomo.calculate_fomo_score(data, best_candidate)
+                            if fomo_score >= 50:
+                                print(f"   ⚠️  FOMO blocked (score: {fomo_score})")
+                                continue
                         
                         # Anti-Revenge check
-                        can_trade_revenge = self.anti_revenge.can_trade()
-                        if not can_trade_revenge:
-                            cooldown = self.anti_revenge.get_cooldown_remaining()
-                            print(f"   ⚠️  Revenge trading blocked ({cooldown}min cooldown)")
-                            continue
+                        if self.anti_revenge:
+                            can_trade_revenge = self.anti_revenge.can_trade()
+                            if not can_trade_revenge:
+                                cooldown = self.anti_revenge.get_cooldown_remaining()
+                                print(f"   ⚠️  Revenge trading blocked ({cooldown}min cooldown)")
+                                continue
                         
                         # Anti-Overtrading check
-                        can_trade_ot = self.overtrading_detector.can_trade()
-                        if not can_trade_ot:
-                            print(f"   ⚠️  Overtrading limit reached")
-                            continue
+                        if self.overtrading_detector:
+                            can_trade_ot = self.overtrading_detector.can_trade()
+                            if not can_trade_ot:
+                                print(f"   ⚠️  Overtrading limit reached")
+                                continue
                         
                         # === RL DECISION ===
                         if self.agent:
