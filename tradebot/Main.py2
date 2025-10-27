@@ -192,29 +192,6 @@ class TradingBot:
             self.experience_buffer = None
             self.learning = None
         
-        # Initialize system integrator
-        print("📦 Initializing system integrator...")
-        self.integrator = SystemIntegrator(
-            pa_components={
-                'trend': self.trend_detector,
-                'zone': self.zone_detector,
-                'choch': self.choch_detector,
-                'entry': self.entry_system,
-                'exit': self.exit_system
-            },
-            rl_components={
-                'agent': self.agent,
-                'scorer': self.setup_scorer,
-                'gates': self.gate_system
-            },
-            behavioral_guards={
-                'fomo': self.anti_fomo,
-                'revenge': self.anti_revenge,
-                'overtrading': self.overtrading_detector
-            },
-            config=self.config
-        )
-        
         print("\n✅ Bot initialized successfully!")
         print("="*60 + "\n")
     
@@ -303,20 +280,97 @@ class TradingBot:
                 
                 # Select coins to trade
                 print("\n📊 Selecting coins...")
-                coins = self.coin_selector.select_coins()
+                # Coin selector returns top 20 watchlist
+                watchlist = self.coin_selector.select_coins()
                 
-                if not coins:
-                    print("   No coins selected (low volume/liquidity)")
+                if not watchlist:
+                    print("   No coins in watchlist (filters not passed)")
                     time.sleep(60)
                     continue
                 
-                print(f"   ✅ Selected: {', '.join(coins)}")
+                print(f"   ✅ Watchlist: {len(watchlist)} coins")
+                print(f"      {', '.join(watchlist[:10])}{'...' if len(watchlist) > 10 else ''}")
+                
+                # Analyze all watchlist coins and find best setups
+                print("\n🔍 Analyzing watchlist for best setups...")
+                
+                # Store all valid setups with scores
+                all_setups = []
                 
                 # Get current equity state
                 equity_state = self._get_equity_state()
                 
                 # Process each coin
-                for symbol in coins:
+                for symbol in watchlist:
+                    try:
+                        # Quick PA check
+                        data = self.data_fetcher.fetch_ohlcv(symbol, '15m', limit=100)
+                        if data is None or len(data) < 50:
+                            continue
+                        
+                        # Quick filters
+                        trend = self.trend_detector.detect(data)
+                        if trend == "SIDEWAYS":
+                            continue
+                        
+                        zones = self.zone_detector.detect_zones(data)
+                        if not zones:
+                            continue
+                        
+                        best_zone = max(zones, key=lambda z: z.get('quality', 0))
+                        if best_zone.get('quality', 0) < 4:
+                            continue
+                        
+                        choch = self.choch_detector.detect(data, trend)
+                        if not choch or choch.get('strength', 0) < 0.4:
+                            continue
+                        
+                        # Generate candidates
+                        candidates = self.entry_system.generate_candidates(
+                            data=data, zone=best_zone, choch=choch, trend=trend
+                        )
+                        
+                        if not candidates:
+                            continue
+                        
+                        # Score and filter
+                        for candidate in candidates:
+                            score = self.setup_scorer.score_setup(
+                                candidate=candidate,
+                                zone_quality=best_zone.get('quality', 0),
+                                choch_strength=choch.get('strength', 0),
+                                trend=trend
+                            )
+                            candidate['setup_score'] = score
+                            candidate['symbol'] = symbol
+                            candidate['trend'] = trend
+                            candidate['zone'] = best_zone
+                            candidate['choch'] = choch
+                            
+                            # Gate validation
+                            passed, _ = self.gate_system.validate(candidate)
+                            if passed and score >= 40:
+                                all_setups.append(candidate)
+                        
+                    except Exception as e:
+                        continue
+                
+                # Sort by score and take top 5
+                all_setups.sort(key=lambda x: x['setup_score'], reverse=True)
+                top_setups = all_setups[:5]
+                
+                if not top_setups:
+                    print("   ⚠️  No valid setups found in watchlist")
+                    time.sleep(60)
+                    continue
+                
+                print(f"\n✅ Found {len(all_setups)} valid setups")
+                print(f"   Trading top {len(top_setups)}:")
+                for setup in top_setups:
+                    print(f"   - {setup['symbol']}: Score {setup['setup_score']:.0f}")
+                
+                # Now trade the top setups
+                for setup in top_setups:
                     try:
                         print(f"\n--- Processing {symbol} ---")
                         
@@ -668,7 +722,8 @@ class TradingBot:
                 "max_positions": 5,           # Max 5 pozisyon ✅
                 "coin_selection": {
                     "enabled": True,
-                    "max_coins": 10
+                    "max_coins": 20,          # Top 20 watchlist ✅
+                    "scan_all": True
                 }
             },
             "trend": {
