@@ -1,0 +1,177 @@
+"""
+Stop Loss Tracker - Günlük SL limiti takip eder
+"""
+
+from datetime import datetime, date
+from typing import Dict
+
+
+class SLTracker:
+    """
+    Günlük Stop Loss limiti takip eder
+    
+    Özellikler:
+    - Günlük SL sayısını izler
+    - Limit dolduğunda trading'i bloklar
+    - Kazanç trade'lerine izin verir
+    - Her gün sıfırlanır
+    """
+    
+    def __init__(self, config: dict):
+        """
+        Initialize SL Tracker
+        
+        Args:
+            config: Risk configuration
+        """
+        self.config = config
+        self.daily_sl_limit = config.get('daily_sl_limit', 5)
+        self.weekly_sl_limit = config.get('weekly_sl_limit', 999)
+        
+        # Daily tracking
+        self.current_date = date.today()
+        self.daily_sl_count = 0
+        
+        # Weekly tracking  
+        self.current_week = self._get_week_number()
+        self.weekly_sl_count = 0
+        
+        print(f"✅ SL Tracker initialized:")
+        print(f"   Daily limit: {self.daily_sl_limit} SL")
+        print(f"   Weekly limit: {self.weekly_sl_limit} SL")
+    
+    def can_trade(self) -> tuple[bool, str]:
+        """
+        Check if trading is allowed
+        
+        Returns:
+            (allowed, reason)
+        """
+        self._check_day_reset()
+        self._check_week_reset()
+        
+        # Check daily limit
+        if self.daily_sl_count >= self.daily_sl_limit:
+            return False, f"Daily SL limit reached ({self.daily_sl_count}/{self.daily_sl_limit})"
+        
+        # Check weekly limit
+        if self.weekly_sl_count >= self.weekly_sl_limit:
+            return False, f"Weekly SL limit reached ({self.weekly_sl_count}/{self.weekly_sl_limit})"
+        
+        return True, "OK"
+    
+    def record_trade(self, r_realized: float):
+        """
+        Record trade result
+        
+        Args:
+            r_realized: Trade result in R (-1.0 for SL, positive for TP)
+        """
+        self._check_day_reset()
+        self._check_week_reset()
+        
+        # Only count stop losses
+        if r_realized <= -0.9:  # Close to -1R = Stop Loss
+            self.daily_sl_count += 1
+            self.weekly_sl_count += 1
+            
+            print(f"❌ Stop Loss recorded:")
+            print(f"   Daily: {self.daily_sl_count}/{self.daily_sl_limit}")
+            print(f"   Weekly: {self.weekly_sl_count}/{self.weekly_sl_limit}")
+            
+            # Check if limit reached
+            if self.daily_sl_count >= self.daily_sl_limit:
+                print(f"\n⚠️  DAILY SL LIMIT REACHED!")
+                print(f"   No more trades today.")
+                print(f"   Resets tomorrow.\n")
+        else:
+            print(f"✅ Trade closed: +{r_realized:.2f}R (SL count unchanged)")
+    
+    def get_status(self) -> Dict:
+        """Get current status"""
+        self._check_day_reset()
+        self._check_week_reset()
+        
+        return {
+            'daily_sl_count': self.daily_sl_count,
+            'daily_sl_limit': self.daily_sl_limit,
+            'daily_remaining': max(0, self.daily_sl_limit - self.daily_sl_count),
+            'weekly_sl_count': self.weekly_sl_count,
+            'weekly_sl_limit': self.weekly_sl_limit,
+            'weekly_remaining': max(0, self.weekly_sl_limit - self.weekly_sl_count),
+            'can_trade': self.can_trade()[0]
+        }
+    
+    def _check_day_reset(self):
+        """Check if new day started, reset if needed"""
+        today = date.today()
+        
+        if today != self.current_date:
+            print(f"\n🔄 New day started! Resetting daily SL count.")
+            print(f"   Previous: {self.daily_sl_count}/{self.daily_sl_limit}")
+            
+            self.current_date = today
+            self.daily_sl_count = 0
+            
+            print(f"   Current: {self.daily_sl_count}/{self.daily_sl_limit}\n")
+    
+    def _check_week_reset(self):
+        """Check if new week started, reset if needed"""
+        current_week = self._get_week_number()
+        
+        if current_week != self.current_week:
+            print(f"\n🔄 New week started! Resetting weekly SL count.")
+            print(f"   Previous: {self.weekly_sl_count}/{self.weekly_sl_limit}")
+            
+            self.current_week = current_week
+            self.weekly_sl_count = 0
+            
+            print(f"   Current: {self.weekly_sl_count}/{self.weekly_sl_limit}\n")
+    
+    def _get_week_number(self) -> int:
+        """Get current week number"""
+        return datetime.now().isocalendar()[1]
+    
+    def reset_daily(self):
+        """Manually reset daily counter (for testing)"""
+        print(f"🔄 Manually resetting daily SL count: {self.daily_sl_count} → 0")
+        self.daily_sl_count = 0
+    
+    def reset_weekly(self):
+        """Manually reset weekly counter (for testing)"""
+        print(f"🔄 Manually resetting weekly SL count: {self.weekly_sl_count} → 0")
+        self.weekly_sl_count = 0
+
+
+# Quick usage example
+if __name__ == "__main__":
+    config = {
+        'daily_sl_limit': 5,
+        'weekly_sl_limit': 999
+    }
+    
+    tracker = SLTracker(config)
+    
+    # Simulate trades
+    print("\n=== Simulating trades ===")
+    
+    for i in range(7):
+        can_trade, reason = tracker.can_trade()
+        
+        if can_trade:
+            print(f"\nTrade {i+1}:")
+            
+            # Simulate random result
+            import random
+            r = random.choice([-1.0, -1.0, 1.5, 2.0])  # 50% SL, 50% TP
+            
+            tracker.record_trade(r)
+        else:
+            print(f"\n❌ Cannot trade: {reason}")
+            break
+    
+    # Print status
+    print("\n=== Final Status ===")
+    status = tracker.get_status()
+    for key, value in status.items():
+        print(f"{key}: {value}")
