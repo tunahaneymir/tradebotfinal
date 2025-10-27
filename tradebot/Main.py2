@@ -21,6 +21,7 @@ load_dotenv()
 
 # Infrastructure
 from infrastructure import InfrastructureManager
+from infrastructure.sl_tracker import SLTracker  # YENİ!
 
 # Core PA System
 from core.trend_detector import TrendDetector
@@ -399,11 +400,13 @@ class TradingBot:
                 "enabled": False
             },
             "risk": {
-                "base_risk_pct": 0.03,        # %3 per trade
-                "daily_r_budget": 5.0,        # Günde max 5R
-                "weekly_dd_limit_r": 15.0,    # Haftalık max 15R
+                "base_risk_pct": 0.03,        # %3 per trade ✅
+                "daily_sl_limit": 5,          # Günde max 5 SL ✅
+                "weekly_sl_limit": 999,       # Haftalık limit yok ✅
                 "max_leverage": 5.0,
-                "max_positions": 5            # Max 5 pozisyon
+                "max_positions": 5,           # Max 5 pozisyon ✅
+                "re_entry_risk_factor": 0.5,
+                "enable_rl_risk_factor": True
             },
             "trading": {
                 "timeframes": {
@@ -411,7 +414,7 @@ class TradingBot:
                     "zone": "1H",
                     "entry": "15M"
                 },
-                "max_positions": 3,
+                "max_positions": 5,           # Max 5 pozisyon ✅
                 "coin_selection": {
                     "enabled": True,
                     "max_coins": 10
