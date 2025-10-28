@@ -1,6 +1,8 @@
 """
 PA + RL Trading Bot - Main Entry Point (FUTURES PAPER TRADING)
 
+✅ FINAL FIX - SelectorConfig parametreleri doğru!
+
 Usage:
     python Main.py --mode paper
     python Main.py --mode live  # After 6 months training
@@ -47,7 +49,7 @@ from learning.experience_buffer import ExperienceBuffer
 # SystemIntegrator kaldırıldı - artık Main.py içinde
 
 # Position Agent (ZATEN VAR!)
-from position_agent.coin_selector import CoinSelector
+from position_agent import CoinSelector, SelectorConfig  # ✅ FIXED: SelectorConfig import
 from position_agent.executor_binance_futures import BinanceFuturesExecutor  # YENİ!
 from position_agent.position_agent import PositionAgent
 from position_agent.rmm_engine import RMMEngine
@@ -145,17 +147,46 @@ class TradingBot:
         
         # Initialize Position Management
         print("📦 Initializing position management...")
-        self.coin_selector = CoinSelector(self.config['trading']['coin_selection'])
+        
+        # ✅ FINAL FIX: SelectorConfig gerçek parametreleri!
+        # SelectorConfig @dataclass parametreleri:
+        # - pool_file: Path
+        # - min_volume: float (default: 80_000_000)
+        # - max_spread: float (default: 0.15)
+        # - min_volatility: float (default: 1.5)
+        # - max_volatility: float (default: 20.0)
+        # - top_coin_limit: int (default: 20)
+        # - update_interval_hours: int (default: 24)
+        # - atr_period: int (default: 14)
+        # - kline_interval: str (default: "1d")
+        # - rate_limit_delay: float (default: 0.05)
+        # - base_url: str (default: "https://fapi.binance.com")
+        
+        selector_config = SelectorConfig(
+            pool_file=Path(self.config['paths'].get('pool_file', 'data/coin_pool.json')),
+            min_volume=self.config['trading']['coin_selection'].get('min_volume_24h', 80_000_000),
+            max_spread=self.config['trading']['coin_selection'].get('max_spread', 0.15),
+            min_volatility=self.config['trading']['coin_selection'].get('min_volatility', 1.5),
+            max_volatility=self.config['trading']['coin_selection'].get('max_volatility', 20.0),
+            top_coin_limit=self.config['trading']['coin_selection'].get('max_coins', 20),
+            update_interval_hours=self.config['trading']['coin_selection'].get('update_interval_hours', 24),
+            atr_period=self.config['trading']['coin_selection'].get('atr_period', 14),
+            kline_interval=self.config['trading']['coin_selection'].get('kline_interval', '1d'),
+            rate_limit_delay=self.config['trading']['coin_selection'].get('rate_limit_delay', 0.05),
+            base_url=self.config['exchange'].get('base_url', 'https://fapi.binance.com')
+        )
+        
+        self.coin_selector = CoinSelector(config=selector_config)
         
         # RMM Engine için config hazırla
         from position_agent.interfaces import RMMConfig
         rmm_config = RMMConfig(
-            base_risk_pct=self.config['risk']['base_risk_pct'],
+            base_risk_pct=self.config['risk'].get('base_risk_pct', self.config['risk'].get('per_trade_pct', 0.02)),
             max_leverage=self.config['risk']['max_leverage'],
             daily_r_budget=self.config['risk'].get('daily_sl_limit', 5),
             weekly_dd_limit_r=self.config['risk'].get('weekly_sl_limit', 999),
             enable_rl_risk_factor=self.config['risk'].get('enable_rl_risk_factor', True),
-            re_entry_risk_factor=self.config['risk'].get('re_entry_risk_factor', 0.5)
+            re_entry_risk_factor=self.config['risk'].get('re_entry_risk_factor', self.config['risk'].get('reentry_risk_factor', 0.5))
         )
         self.rmm_engine = RMMEngine(rmm_config)
         
@@ -180,8 +211,9 @@ class TradingBot:
         # Initialize learning system
         print("📦 Initializing learning system...")
         if self.config['learning']['enabled']:
+            # ✅ FIX: ExperienceBuffer uses 'capacity', not 'max_size'
             self.experience_buffer = ExperienceBuffer(
-                max_size=self.config['learning']['buffer_size']
+                capacity=self.config['learning']['buffer_size']
             )
             print("   ⚠️  Continuous learning disabled (file has syntax error)")
             print("   ✅ Experience buffer active (will store trades)")
@@ -278,8 +310,15 @@ class TradingBot:
                 
                 # Select coins to trade
                 print("\n📊 Selecting coins...")
-                # Coin selector returns top 20 watchlist
-                watchlist = self.coin_selector.select_coins()
+                # ✅ FIX: CoinSelector uses get_top_volume_coins(), not select_coins()
+                coin_data = self.coin_selector.get_top_volume_coins(
+                    limit=self.config['trading']['coin_selection'].get('max_coins', 20),
+                    quote='USDT',
+                    market='um'
+                )
+                
+                # Extract symbol list from coin data
+                watchlist = [coin['symbol'] for coin in coin_data] if coin_data else []
                 
                 if not watchlist:
                     print("   No coins in watchlist (filters not passed)")
@@ -370,9 +409,10 @@ class TradingBot:
                 # Now trade the top setups
                 for setup in top_setups:
                     try:
+                        symbol = setup['symbol']
                         print(f"\n--- Processing {symbol} ---")
                         
-                        # Fetch market data
+                        # Fetch fresh market data
                         data = self.data_fetcher.fetch_ohlcv(
                             symbol=symbol,
                             timeframe=self.config['trading']['timeframes']['entry'],
@@ -383,33 +423,13 @@ class TradingBot:
                             print(f"   ⚠️  Insufficient data for {symbol}")
                             continue
                         
-                        # === PA ANALYSIS ===
-                        print("   🔍 PA Analysis...")
-                        
-                        # Trend detection
-                        trend = self.trend_detector.detect(data)
-                        if trend == "SIDEWAYS":
-                            print(f"   ⚠️  Sideways market, skipping")
-                            continue
+                        # Use the pre-analyzed setup
+                        trend = setup['trend']
+                        best_zone = setup['zone']
+                        choch = setup['choch']
                         
                         print(f"   Trend: {trend}")
-                        
-                        # Zone detection
-                        zones = self.zone_detector.detect_zones(data)
-                        if not zones:
-                            print(f"   ⚠️  No zones found")
-                            continue
-                        
-                        # Get best zone
-                        best_zone = max(zones, key=lambda z: z.get('quality', 0))
                         print(f"   Zone quality: {best_zone.get('quality', 0):.1f}/10")
-                        
-                        # ChoCH detection
-                        choch = self.choch_detector.detect(data, trend)
-                        if not choch or choch.get('strength', 0) < 0.4:
-                            print(f"   ⚠️  No valid ChoCH")
-                            continue
-                        
                         print(f"   ChoCH strength: {choch.get('strength', 0):.2f}")
                         
                         # Generate PA candidates
@@ -642,6 +662,8 @@ class TradingBot:
             return data['close'].iloc[-1] if data is not None and len(data) > 0 else 0.0
         except Exception:
             return 0.0
+    
+    def _verify_live_ready(self) -> bool:
         """Verify bot is ready for live trading (after 6 months paper)"""
         # TODO: Check performance metrics, training duration, etc.
         # For now, just check if model exists
@@ -696,23 +718,27 @@ class TradingBot:
                 "data_dir": "state",
                 "database_path": "data/trades.db",
                 "logs_dir": "logs",
-                "models_dir": "models"
+                "models_dir": "models",
+                "pool_file": "data/coin_pool.json"  # ✅ EKLENDI
             },
             "exchange": {
                 "name": "binance",
                 "market_type": "futures",  # FUTURES!
-                "data_source": "simulation"
+                "data_source": "simulation",
+                "base_url": "https://fapi.binance.com"  # ✅ EKLENDI - SelectorConfig için
             },
             "telegram": {
                 "enabled": False
             },
             "risk": {
-                "base_risk_pct": 0.03,        # %3 per trade ✅
+                "base_risk_pct": 0.02,        # %2 per trade ✅
+                "per_trade_pct": 0.02,        # %2 per trade ✅
                 "daily_sl_limit": 5,          # Günde max 5 SL ✅
                 "weekly_sl_limit": 999,       # Haftalık limit yok ✅
                 "max_leverage": 5.0,
                 "max_positions": 5,           # Max 5 pozisyon ✅
                 "re_entry_risk_factor": 0.5,
+                "reentry_risk_factor": 0.5,   # Alternative naming
                 "enable_rl_risk_factor": True
             },
             "trading": {
@@ -725,7 +751,16 @@ class TradingBot:
                 "coin_selection": {
                     "enabled": True,
                     "max_coins": 20,          # Top 20 watchlist ✅
-                    "scan_all": True
+                    "scan_all": True,
+                    "min_volume_24h": 80000000,      # $80M (SelectorConfig default)
+                    "min_liquidity": 5000000,        # $5M
+                    "max_spread": 0.15,              # ✅ EKLENDI - SelectorConfig için
+                    "min_volatility": 1.5,           # ✅ EKLENDI - SelectorConfig için
+                    "max_volatility": 20.0,          # ✅ EKLENDI - SelectorConfig için
+                    "update_interval_hours": 24,     # ✅ EKLENDI - SelectorConfig için
+                    "atr_period": 14,                # ✅ EKLENDI - SelectorConfig için
+                    "kline_interval": "1d",          # ✅ EKLENDI - SelectorConfig için
+                    "rate_limit_delay": 0.05         # ✅ EKLENDI - SelectorConfig için
                 }
             },
             "trend": {
@@ -754,6 +789,10 @@ class TradingBot:
                 "gates": {
                     "enabled": True,
                     "min_zone_quality": 4
+                },
+                "setup_scoring": {
+                    "min_score": 40,
+                    "excellent_threshold": 80
                 }
             },
             "behavior": {
